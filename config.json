@@ -21,7 +21,7 @@
             "nodata": "شما اطلاعاتی وارد نکرده‌اید. با استفاده از دستور /start می‌توانید اطلاعاتتان را وارد کنید.",
             "list_sign": "♦︎ "
         },
-        "admins": ["hadi_sfr"]
+        "admins": ["hadi_sfr", "Hamzeh_Ghalebi"]
     },
     "cols": {
         "file_addr": "cols.json",
