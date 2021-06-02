@@ -1,5 +1,3 @@
-# Form Bot
-
-a simple form filling telegram bot
+# ربات ثبت‌نام ستاد همتی برای ایران
 
 &copy; 2021 Hadi Safari
