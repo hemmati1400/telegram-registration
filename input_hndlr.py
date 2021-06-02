@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import re
+from sys import stderr
 
+import requests
 import telebot
 
 from db_hndlr import DBHndlr
@@ -13,7 +15,7 @@ class InputHndlr:
     UPLOAD_STATUS = -2
     SPECIAL_STATUSES = {COMMENT_STATUS, UPLOAD_STATUS}
 
-    def __init__(self, tg_bot, db_hndlr, form_keys, cols, msg, report_file_addr, comments_file_addr, db_config):
+    def __init__(self, tg_bot, db_hndlr, form_keys, cols, msg, report_file_addr, comments_file_addr, db_config, token):
         self.tg_bot = tg_bot
         self.db_hndlr = db_hndlr
         self.form_keys = form_keys
@@ -22,6 +24,7 @@ class InputHndlr:
         self.report_file_addr = report_file_addr
         self.comments_file_addr = comments_file_addr
         self.db_config = db_config
+        self.token = token
         self.IDLE_STATUS = len(self.cols)
 
     def is_valid_msg(self, msg, index):
@@ -87,7 +90,7 @@ class InputHndlr:
             self.db_hndlr.set_attr(usr_id, self.db_config.username_key, username)
             self.tg_bot.send_message(chat_id, self.msg.start)
         elif status == self.UPLOAD_STATUS:
-            self.handle_upload(msg)
+            self.tg_bot.send_message(chat_id, self.msg.upload_inv_type)
         elif status == self.COMMENT_STATUS:
             self.handle_comment(msg)
         elif status == self.IDLE_STATUS:
@@ -123,8 +126,31 @@ class InputHndlr:
         usr_id = msg.from_user.id
         chat_id = msg.chat.id
         username = msg.from_user.username
-        # TODO save file
+
+        objs = list(filter(lambda obj: obj is not None, [msg.audio, msg.document, msg.photo, msg.video, msg.voice]))
+        if not objs:
+            self.tg_bot.send_message(chat_id, self.msg.upload_inv_type)
+            return
+        file_obj = objs[0]
+        if not isinstance(file_obj, list):
+            file_obj = [file_obj]
+
+        for obj in file_obj:
+            self.save_file(obj.file_id, chat_id)
+
         self.tg_bot.send_message(chat_id, self.msg.tnx)
+
+    def save_file(self, file_id, chat_id):
+        file_info = self.tg_bot.get_file(file_id)
+
+        url = "https://api.telegram.org/file/bot{0}/{1}".format(self.token, file_info.file_path)
+        res = requests.get(url)
+        if res.status_code != 200:
+            print("ERR:\tfile %s from %s" % (file_id, chat_id), file=stderr)
+            return
+
+        with open("download/%s_%s" % (chat_id, file_info.file_path.replace("/", "_")), "wb") as f:
+            f.write(res.content)
 
     def send_about(self, msg):
         chat_id = msg.chat.id
