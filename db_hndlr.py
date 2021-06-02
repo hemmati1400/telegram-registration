@@ -27,8 +27,10 @@ class DBHndlr(object):
     def __init__(self, db_config, form_keys, cols):
         self.url = db_config.url
         conn, cursor = self.get_conn()
+
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tbls = [i[0] for i in cursor.fetchall()]
+
         if db_config.tbl_name not in tbls:
             print("Table not found.\nCreating table %s..." % db_config.tbl_name, file=stderr)
             cols_str = "%s %s not null PRIMARY KEY" % (db_config.primary_key, "bigint")
@@ -39,8 +41,17 @@ class DBHndlr(object):
             for col in cols:
                 cols_str += ", %s %s" % (col[form_keys.db_key], col[form_keys.db_type])
             cursor.execute("create table %s (%s);" % (db_config.tbl_name, cols_str))
+
+        if db_config.cmt_tbl_name not in tbls:
+            print("Table not found.\nCreating table %s..." % db_config.cmt_tbl_name, file=stderr)
+            cols_str = "%s %s not null" % (db_config.chat_key, "int")
+            cols_str += ", %s %s" % (db_config.username_key, "text")
+            cols_str += ", %s %s" % (db_config.cmt_key, "text")
+            cursor.execute("create table %s (%s);" % (db_config.cmt_tbl_name, cols_str))
+
         conn.commit()
         conn.close()
+
         self.config = db_config
         self.report_keys = OrderedDict((col[form_keys.db_key], col[form_keys.report_key]) for col in cols)
 
@@ -155,3 +166,39 @@ class DBHndlr(object):
             ws.append(row)
         conn.close()
         wb.save(addr)
+
+    def export_comments(self, addr):
+        print("exporting as XLSX to %s..." % addr, file=stderr)
+        wb = Workbook()
+        ws = wb.active
+        conn, cursor = self.get_conn()
+        cursor.execute(
+            "select %s from %s;" % (
+                self.config.cmt_key,
+                self.config.cmt_tbl_name))
+        sheet = cursor.fetchall()
+        for row in sheet:
+            ws.append(row)
+        conn.close()
+        wb.save(addr)
+
+    def add_commnet(self, chat_id, username, cmt):
+        try:
+            conn, cursor = self.get_conn()
+            cursor.execute(
+                "insert into %s (%s, %s, %s) values(%s, %s, %s);" % (
+                    self.config.cmt_tbl_name,
+                    self.config.chat_key,
+                    self.config.username_key,
+                    self.config.cmt_key,
+                    "?",
+                    "?",
+                    "?"),
+                (chat_id, username, cmt))
+            conn.commit()
+            conn.close()
+            return True
+        except sqlite3.Error as ex:
+            conn.close()
+            print("ERR: %s" % ex, file=stderr)
+            raise
