@@ -93,6 +93,10 @@ class InputHndlr:
         else:
             self.tg_bot.send_message(chat_id, self.msg.done + self.get_report(usr_id))
 
+    def send_about(self, msg):
+        chat_id = msg.chat.id
+        self.tg_bot.send_message(chat_id, self.msg.about)
+
     def send_report(self, msg):
         usr_id = msg.from_user.id
         chat_id = msg.chat.id
